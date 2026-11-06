@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">Weather</string>
+    <string name="api_key">75a298558cd6e2ac3ff1fd3b81213c4c</string>
+
+    <string-array name="cities">
+        <item>Irkutsk</item>
+        <item>Moscow</item>
+        <item>Saint Petersburg</item>
+        <item>Novosibirsk</item>
+        <item>Krasnoyarsk</item>
+        <item>Vladivostok</item>
+    </string-array>
+</resources>
