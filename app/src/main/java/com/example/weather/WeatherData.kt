@@ -7,5 +7,7 @@ data class WeatherData(
     val description: String = "Загрузка данных...",
     val humidity: String = "Влажность: --%",
     val windSpeed: String = "Ветер: -- м/с",
+    val windDirection: String = "",
+    val showWindDirection: Boolean = false,
     val pressure: String = "Давление: -- гПа"
 )

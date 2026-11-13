@@ -21,5 +21,6 @@ data class WeatherInfo(
 )
 
 data class WindInfo(
-    val speed: Double
+    val speed: Double,
+    val deg: Int = 0
 )
