@@ -3,6 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <data>
+        <import type="android.view.View" />
         <variable
             name="weather"
             type="com.example.weather.WeatherData" />
@@ -36,6 +37,36 @@
             android:layout_marginTop="8dp"
             android:hint="Или введите другой город"
             android:inputType="textCapWords" />
+
+        <RadioGroup
+            android:id="@+id/rgTempScale"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:orientation="horizontal">
+
+            <RadioButton
+                android:id="@+id/rbCelsius"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:checked="true"
+                android:text="Цельсий (°C)" />
+
+            <RadioButton
+                android:id="@+id/rbFahrenheit"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:text="Фаренгейт (°F)" />
+        </RadioGroup>
+
+        <CheckBox
+            android:id="@+id/cbShowWindDir"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:checked="true"
+            android:text="Отображать направление ветра" />
 
         <Button
             android:id="@+id/btnLoadWeather"
@@ -99,6 +130,15 @@
                 android:text="@{weather.windSpeed}"
                 android:textSize="16sp"
                 tools:text="Ветер: 3.0 м/с" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="@{weather.windDirection}"
+                android:visibility="@{weather.showWindDirection ? View.VISIBLE : View.GONE}"
+                android:textSize="16sp"
+                tools:text="Направление ветра: СЗ (315°)" />
 
             <TextView
                 android:layout_width="match_parent"

@@ -22,6 +22,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private val gson = Gson()
+    private var lastResponse: OpenWeatherResponse? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -30,7 +31,7 @@ class MainActivity : AppCompatActivity() {
         binding = DataBindingUtil.setContentView(this, R.layout.activity_main)
 
         // Задаём стартовые значения по умолчанию
-        binding.weather = WeatherData()
+        binding.weather = WeatherData(showWindDirection = binding.cbShowWindDir.isChecked)
 
         // Слушатель выбора города из выпадающего списка (Spinner)
         binding.spinnerCities.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
@@ -48,6 +49,16 @@ class MainActivity : AppCompatActivity() {
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
 
+        // Переключение шкалы температуры (°C / °F)
+        binding.rgTempScale.setOnCheckedChangeListener { _, _ ->
+            updateWeatherUi()
+        }
+
+        // Отображение направления ветра (CheckBox)
+        binding.cbShowWindDir.setOnCheckedChangeListener { _, _ ->
+            updateWeatherUi()
+        }
+
         // Кнопка обновления погоды (берёт город из EditText, если он введён, иначе — из Spinner)
         binding.btnLoadWeather.setOnClickListener {
             val customCity = binding.etCustomCity.text.toString().trim()
@@ -60,17 +71,38 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun isFahrenheitSelected(): Boolean =
+        binding.rgTempScale.checkedRadioButtonId == R.id.rbFahrenheit
+
+    private fun updateWeatherUi() {
+        val response = lastResponse
+        if (response != null) {
+            binding.weather = buildWeatherData(
+                response = response,
+                isFahrenheit = isFahrenheitSelected(),
+                showWindDir = binding.cbShowWindDir.isChecked
+            )
+        } else {
+            val current = binding.weather ?: WeatherData()
+            binding.weather = current.copy(showWindDirection = binding.cbShowWindDir.isChecked)
+        }
+        binding.executePendingBindings()
+    }
+
     private fun loadWeather(city: String) {
         val apiKey = getString(R.string.api_key).trim()
+        val isFahrenheit = isFahrenheitSelected()
+        val showWindDir = binding.cbShowWindDir.isChecked
 
         // Показываем статус загрузки
         binding.weather = WeatherData(
             cityName = city,
-            description = "Запрос к серверу..."
+            description = "Запрос к серверу...",
+            showWindDirection = showWindDir
         )
 
         CoroutineScope(Dispatchers.IO).launch {
-            val weatherResult = fetchWeatherFromApi(city, apiKey)
+            val weatherResult = fetchWeatherFromApi(city, apiKey, isFahrenheit, showWindDir)
 
             withContext(Dispatchers.Main) {
                 // Обновляем привязанный объект и принудительно обновляем UI
@@ -80,7 +112,12 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun fetchWeatherFromApi(city: String, apiKey: String): WeatherData {
+    private fun fetchWeatherFromApi(
+        city: String,
+        apiKey: String,
+        isFahrenheit: Boolean,
+        showWindDir: Boolean
+    ): WeatherData {
         return try {
             val encodedCity = URLEncoder.encode(city, "UTF-8")
             val weatherUrl =
@@ -97,18 +134,8 @@ class MainActivity : AppCompatActivity() {
             if (code == HttpURLConnection.HTTP_OK) {
                 InputStreamReader(connection.inputStream, "UTF-8").use { reader ->
                     val response = gson.fromJson(reader, OpenWeatherResponse::class.java)
-                    val desc = response.weather.firstOrNull()?.description
-                        ?.replaceFirstChar { it.uppercase() } ?: "Нет данных"
-
-                    WeatherData(
-                        cityName = response.name,
-                        temperature = "${response.main.temp.roundToInt()} °C",
-                        feelsLike = "Ощущается как: ${response.main.feels_like.roundToInt()} °C",
-                        description = desc,
-                        humidity = "Влажность: ${response.main.humidity}%",
-                        windSpeed = "Ветер: ${response.wind.speed} м/с",
-                        pressure = "Давление: ${response.main.pressure} гПа"
-                    )
+                    lastResponse = response
+                    buildWeatherData(response, isFahrenheit, showWindDir)
                 }
             } else {
                 // Читаем текст ошибки от сервера OpenWeatherMap
@@ -120,13 +147,53 @@ class MainActivity : AppCompatActivity() {
                     404 -> "Ошибка 404: Город '$city' не найден"
                     else -> "Ошибка сервера: код $code"
                 }
-                WeatherData(cityName = city, description = reason)
+                WeatherData(cityName = city, description = reason, showWindDirection = showWindDir)
             }
         } catch (e: Exception) {
             android.util.Log.e("WEATHER_API", "Exception", e)
             WeatherData(
                 cityName = city,
-                description = "Ошибка сети: ${e.javaClass.simpleName}\n(${e.localizedMessage})"
+                description = "Ошибка сети: ${e.javaClass.simpleName}\n(${e.localizedMessage})",
+                showWindDirection = showWindDir
+            )
+        }
+    }
+
+    companion object {
+        fun formatTemp(tempCelsius: Double, isFahrenheit: Boolean): String {
+            return if (isFahrenheit) {
+                val f = (tempCelsius * 9.0 / 5.0 + 32.0).roundToInt()
+                "$f °F"
+            } else {
+                "${tempCelsius.roundToInt()} °C"
+            }
+        }
+
+        fun degToCompass(deg: Int): String {
+            val directions = arrayOf("С", "СВ", "В", "ЮВ", "Ю", "ЮЗ", "З", "СЗ")
+            val normalized = ((deg % 360) + 360) % 360
+            val index = ((normalized + 22.5) / 45.0).toInt() % 8
+            return "${directions[index]} ($normalized°)"
+        }
+
+        fun buildWeatherData(
+            response: OpenWeatherResponse,
+            isFahrenheit: Boolean,
+            showWindDir: Boolean
+        ): WeatherData {
+            val desc = response.weather.firstOrNull()?.description
+                ?.replaceFirstChar { it.uppercase() } ?: "Нет данных"
+
+            return WeatherData(
+                cityName = response.name,
+                temperature = formatTemp(response.main.temp, isFahrenheit),
+                feelsLike = "Ощущается как: ${formatTemp(response.main.feels_like, isFahrenheit)}",
+                description = desc,
+                humidity = "Влажность: ${response.main.humidity}%",
+                windSpeed = "Ветер: ${response.wind.speed} м/с",
+                windDirection = "Направление ветра: ${degToCompass(response.wind.deg)}",
+                showWindDirection = showWindDir,
+                pressure = "Давление: ${response.main.pressure} гПа"
             )
         }
     }

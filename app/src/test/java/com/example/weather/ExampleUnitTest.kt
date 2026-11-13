@@ -11,7 +11,11 @@ import org.junit.Assert.*
  */
 class ExampleUnitTest {
     @Test
-    fun addition_isCorrect() {
-        assertEquals(4, 2 + 2)
+    fun tempAndWindFormatting_isCorrect() {
+        assertEquals("0 °C", MainActivity.formatTemp(0.0, false))
+        assertEquals("32 °F", MainActivity.formatTemp(0.0, true))
+        assertEquals("С (0°)", MainActivity.degToCompass(0))
+        assertEquals("В (90°)", MainActivity.degToCompass(90))
+        assertEquals("СЗ (315°)", MainActivity.degToCompass(315))
     }
 }
